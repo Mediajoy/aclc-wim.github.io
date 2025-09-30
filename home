@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Persistent Meeting Agenda Task List</title>
+<style>
+/* --- CSS Styling (No Changes Here) --- */
+#task-container {
+    font-family: Arial, sans-serif;
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.task-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+.task-item:last-child {
+    border-bottom: none;
+}
+.task-item input[type="checkbox"] {
+    margin-right: 15px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+.task-text {
+    flex-grow: 1;
+    font-size: 16px;
+    padding: 5px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    outline: none;
+    cursor: text;
+    white-space: pre-wrap;
+}
+.task-text:focus {
+    border: 1px solid #007bff;
+    background-color: #f9f9f9;
+}
+.completed .task-text {
+    text-decoration: line-through;
+    color: #888;
+}
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.controls button, .add-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+#load-agenda-btn {
+    background-color: #28a745;
+    color: white;
+}
+#load-agenda-btn:hover {
+    background-color: #218838;
+}
+#export-btn {
+    background-color: #007bff;
+    color: white;
+}
+#export-btn:hover {
+    background-color: #0056b3;
+}
+.add-btn {
+    background-color: #ffc107;
+    color: #333;
+}
+.add-btn:hover {
+    background-color: #e0a800;
+}
+#agenda-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+    min-height: 100px;
+    resize: vertical;
+}
+.input-area {
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 4px;
+    background-color: #f7f7f7;
+}
+</style>
+</head>
+<body>
+
+<div id="task-container">
+    <h2>Meeting Agenda Task Manager 📝</h2>
+
+    <div class="input-area">
+        <p>1. Paste your meeting agenda text below (one item per line is best):</p>
+        <textarea id="agenda-input" placeholder="e.g., Approve previous minutes&#10;Review Q3 financials&#10;Discuss new project timeline"></textarea>
+        <button id="load-agenda-btn">2. Convert Text to Tasks</button>
+    </div>
+
+    <div id="task-list">
+        </div>
+
+    <div class="controls">
+        <button class="add-btn" onclick="addNewTask('New Task Added')">➕ Add New Task</button>
+        <button id="export-btn">⬇️ Download Next Agenda</button>
+        <button id="clear-data-btn" style="background-color: #dc3545; color: white;">🗑️ Clear Saved Data</button>
+    </div>
+
+</div>
+
+<script>
+// --- JavaScript Logic ---
+
+const TASK_STORAGE_KEY = 'agendaTasks'; 
+const taskList = document.getElementById('task-list');
+const agendaInput = document.getElementById('agenda-input');
+const loadAgendaBtn = document.getElementById('load-agenda-btn');
+const exportBtn = document.getElementById('export-btn');
+const clearDataBtn = document.getElementById('clear-data-btn');
+
+// ------------------------------------------------------------------
+// LOCAL STORAGE FUNCTIONS
+// ------------------------------------------------------------------
+
+/**
+ * Saves the current state of the task list to Local Storage.
+ */
+function saveTasks() {
+    const tasks = [];
+    taskList.querySelectorAll('.task-item').forEach(taskItem => {
+        tasks.push({
+            text: taskItem.querySelector('.task-text').textContent.trim(),
+            completed: taskItem.classList.contains('completed')
+        });
+    });
+    localStorage.setItem(TASK_STORAGE_KEY, JSON.stringify(tasks));
+}
+
+/**
+ * Loads tasks from Local Storage and rebuilds the list.
+ */
+function loadTasks() {
+    const jsonString = localStorage.getItem(TASK_STORAGE_KEY);
+    taskList.innerHTML = ''; // Clear current list
+
+    if (jsonString) {
+        try {
+            const tasks = JSON.parse(jsonString);
+            tasks.forEach(task => {
+                // Ensure text is not empty before creating an element
+                if (task.text) {
+                    const newTask = createTaskElement(task.text, task.completed);
+                    taskList.appendChild(newTask);
+                }
+            });
+        } catch (e) {
+            console.error("Error parsing tasks from Local Storage:", e);
+        }
+    }
+
+    if (taskList.children.length === 0) {
+        // Show placeholder if no tasks are loaded
+        taskList.innerHTML = '<p>Tasks will appear here after loading the agenda.</p>';
+    }
+}
+
+// ------------------------------------------------------------------
+// TASK MANAGEMENT FUNCTIONS
+// ------------------------------------------------------------------
+
+/**
+ * Creates and returns a single task item DOM element.
+ */
+function createTaskElement(text, isCompleted = false) {
+    const taskItem = document.createElement('div');
+    taskItem.className = 'task-item' + (isCompleted ? ' completed' : '');
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = isCompleted;
+    checkbox.addEventListener('change', (e) => {
+        taskItem.classList.toggle('completed', e.target.checked);
+        saveTasks(); // **SAVE on check/uncheck**
+    });
+
+    const taskText = document.createElement('div');
+    taskText.className = 'task-text';
+    taskText.contentEditable = true;
+    taskText.textContent = text.trim();
+    
+    // **SAVE** on text changes (input) and when leaving the text box (blur)
+    taskText.addEventListener('input', saveTasks);
+    taskText.addEventListener('blur', saveTasks);
+
+    taskItem.appendChild(checkbox);
+    taskItem.appendChild(taskText);
+
+    return taskItem;
+}
+
+/**
+ * Adds a new task element to the list.
+ */
+function addNewTask(text) {
+    // Remove the initial placeholder text if it exists
+    const placeholder = taskList.querySelector('p');
+    if(placeholder && placeholder.textContent.includes('Tasks will appear here')) {
+        taskList.innerHTML = '';
+    }
+    const newTask = createTaskElement(text);
+    taskList.appendChild(newTask);
+    newTask.querySelector('.task-text').focus();
+    saveTasks(); // **SAVE on add**
+}
+
+/**
+ * Clears the existing list and loads tasks from the textarea input.
+ */
+function loadAgendaFromInput() {
+    const agendaText = agendaInput.value.trim();
+    if (!agendaText) return;
+
+    taskList.innerHTML = ''; // Clear current tasks
+
+    // Split text by lines and create a task for each non-empty line
+    const lines = agendaText.split('\n');
+    lines.forEach(line => {
+        if (line.trim()) {
+            taskList.appendChild(createTaskElement(line));
+        }
+    });
+
+    agendaInput.value = ''; // Clear the input area after loading
+    saveTasks(); // **SAVE on load from input**
+}
+
+/**
+ * Gathers all UNCOMPLETED tasks and downloads the new agenda.
+ */
+function downloadAgenda() {
+    const tasks = taskList.querySelectorAll('.task-item');
+    let outputText = "--- New Meeting Agenda (Uncompleted Tasks) ---\n\n";
+    let incompleteTasks = [];
+
+    tasks.forEach(task => {
+        const isCompleted = task.classList.contains('completed');
+        if (!isCompleted) {
+            const text = task.querySelector('.task-text').textContent.trim();
+            incompleteTasks.push(text);
+        }
+    });
+
+    incompleteTasks.forEach((task, index) => {
+        outputText += `${index + 1}. ${task}\n`;
+    });
+
+    if (incompleteTasks.length === 0) {
+        outputText += "All tasks were completed. The agenda is clear! 🎉\n";
+    }
+
+    const blob = new Blob([outputText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'new_agenda_' + new Date().toISOString().slice(0, 10) + '.txt';
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
+}
+
+// ------------------------------------------------------------------
+// EVENT LISTENERS & INITIALIZATION
+// ------------------------------------------------------------------
+
+loadAgendaBtn.addEventListener('click', loadAgendaFromInput);
+exportBtn.addEventListener('click', downloadAgenda);
+
+clearDataBtn.addEventListener('click', () => {
+    if (confirm("Are you sure you want to permanently clear ALL saved tasks?")) {
+        localStorage.removeItem(TASK_STORAGE_KEY);
+        loadTasks(); // Reloads the empty state
+        alert("All saved data has been cleared.");
+    }
+});
+
+// *** IMPORTANT FIX: Use DOMContentLoaded for reliable loading in embeds ***
+document.addEventListener('DOMContentLoaded', loadTasks); 
+
+</script>
+
+</body>
+</html>
