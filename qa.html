@@ -34,6 +34,17 @@
     border-left: 4px solid #2196f3;
 }
 
+.question-tip {
+    font-size: 12px;
+    font-style: italic;
+    color: #666;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background-color: #fff3cd;
+    border-radius: 3px;
+    border-left: 3px solid #ffc107;
+}
+
 .answer-input {
     width: 100%;
     min-height: 80px;
@@ -170,10 +181,13 @@
     <div class="input-area">
         <p><strong>1. Paste your questions below (one per line or separated by blank lines):</strong></p>
         <textarea id="questions-input" placeholder="Example:
+(Think about your professional identity)
 What is your name?
 
+(Consider your personal preferences)
 What is your favorite color?
 
+(Include all relevant work experience)
 How many years of experience do you have?
 
 What are your career goals?"></textarea>
@@ -227,7 +241,9 @@ function saveQAData() {
     qaList.querySelectorAll('.qa-item').forEach(item => {
         const question = item.querySelector('.question').textContent.trim();
         const answer = item.querySelector('.answer-input').value.trim();
-        qaItems.push({ question, answer });
+        const tipElement = item.querySelector('.question-tip');
+        const tip = tipElement ? tipElement.textContent.trim() : '';
+        qaItems.push({ question, answer, tip });
     });
     localStorage.setItem(QA_STORAGE_KEY, JSON.stringify(qaItems));
     updateStats();
@@ -246,7 +262,7 @@ function loadQAData() {
             if (qaItems.length > 0) {
                 qaItems.forEach(item => {
                     if (item.question) {
-                        createQAElement(item.question, item.answer || '');
+                        createQAElement(item.question, item.answer || '', item.tip || '');
                     }
                 });
                 updateStats();
@@ -280,9 +296,17 @@ function showNoQuestionsPlaceholder() {
 /**
  * Creates a Q&A element and adds it to the list
  */
-function createQAElement(question, answer = '') {
+function createQAElement(question, answer = '', tip = '') {
     const qaItem = document.createElement('div');
     qaItem.className = 'qa-item';
+
+    // Add tip if provided
+    if (tip) {
+        const tipDiv = document.createElement('div');
+        tipDiv.className = 'question-tip';
+        tipDiv.textContent = tip;
+        qaItem.appendChild(tipDiv);
+    }
 
     const questionDiv = document.createElement('div');
     questionDiv.className = 'question';
@@ -312,30 +336,57 @@ function loadQuestionsFromInput() {
     // Clear existing content
     qaList.innerHTML = '';
 
-    // Split questions by double newlines first, then by single newlines
-    let questions = text.split(/\n\s*\n/).filter(q => q.trim());
+    // Split by double newlines first, then by single newlines
+    let sections = text.split(/\n\s*\n/).filter(q => q.trim());
 
     // If no double newlines found, split by single newlines
-    if (questions.length === 1) {
-        questions = text.split('\n').filter(q => q.trim());
+    if (sections.length === 1) {
+        sections = text.split('\n').filter(q => q.trim());
     }
 
-    // Remove common question markers and clean up
-    questions = questions.map(q => {
-        return q.trim()
+    let pendingTip = '';
+    const processedQuestions = [];
+
+    sections.forEach(section => {
+        const trimmedSection = section.trim();
+
+        // Check if this section is just content in parentheses (tip)
+        const parenthesesMatch = trimmedSection.match(/^\((.+)\)$/s);
+        if (parenthesesMatch) {
+            pendingTip = parenthesesMatch[1].trim();
+            return;
+        }
+
+        // Clean up the section (remove common markers)
+        let cleanedSection = trimmedSection
             .replace(/^\d+[\.\)]\s*/, '') // Remove "1. " or "1) "
             .replace(/^[•\-\*]\s*/, '')   // Remove bullet points
             .replace(/^\?\s*/, '');        // Remove standalone question marks
-    }).filter(q => q.length > 0);
 
-    if (questions.length === 0) {
+        // Check if this looks like a question (has letters, not just whitespace/punctuation)
+        if (cleanedSection.length > 0 && /[a-zA-Z]/.test(cleanedSection)) {
+            // Check if the first word is capitalized (likely a proper question)
+            const firstWord = cleanedSection.split(/\s+/)[0];
+            const isCapitalized = firstWord && firstWord[0] === firstWord[0].toUpperCase();
+
+            if (isCapitalized || cleanedSection.includes('?')) {
+                processedQuestions.push({
+                    question: cleanedSection,
+                    tip: pendingTip
+                });
+                pendingTip = ''; // Reset tip after using it
+            }
+        }
+    });
+
+    if (processedQuestions.length === 0) {
         showNoQuestionsPlaceholder();
         return;
     }
 
     // Create Q&A elements for each question
-    questions.forEach(question => {
-        createQAElement(question);
+    processedQuestions.forEach(item => {
+        createQAElement(item.question, '', item.tip);
     });
 
     // Clear input and save data
