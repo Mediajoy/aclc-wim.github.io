@@ -249,27 +249,56 @@ function loadAgendaFromInput() {
 }
 
 /**
- * Gathers all UNCOMPLETED tasks and downloads the new agenda.
+ * Downloads agenda with both uncompleted and completed tasks, with meeting date.
  */
 function downloadAgenda() {
     const tasks = taskList.querySelectorAll('.task-item');
-    let outputText = "--- New Meeting Agenda (Uncompleted Tasks) ---\n\n";
+    const meetingDate = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    let outputText = `MEETING AGENDA - ${meetingDate}\n`;
+    outputText += "=".repeat(50) + "\n\n";
+
     let incompleteTasks = [];
+    let completedTasks = [];
 
     tasks.forEach(task => {
         const isCompleted = task.classList.contains('completed');
-        if (!isCompleted) {
-            const text = task.querySelector('.task-text').textContent.trim();
+        const text = task.querySelector('.task-text').textContent.trim();
+
+        if (isCompleted) {
+            completedTasks.push(text);
+        } else {
             incompleteTasks.push(text);
         }
     });
 
-    incompleteTasks.forEach((task, index) => {
-        outputText += `${index + 1}. ${task}\n`;
-    });
-
+    // TO-BE-DONE section (on top)
+    outputText += "TO-BE-DONE:\n";
+    outputText += "-".repeat(20) + "\n";
     if (incompleteTasks.length === 0) {
-        outputText += "All tasks were completed. The agenda is clear! 🎉\n";
+        outputText += "All tasks completed! 🎉\n";
+    } else {
+        incompleteTasks.forEach((task, index) => {
+            outputText += `${index + 1}. ${task}\n`;
+        });
+    }
+
+    outputText += "\n\n";
+
+    // DONE section (below)
+    outputText += "DONE:\n";
+    outputText += "-".repeat(20) + "\n";
+    if (completedTasks.length === 0) {
+        outputText += "No tasks completed yet.\n";
+    } else {
+        completedTasks.forEach((task, index) => {
+            outputText += `${index + 1}. ${task}\n`;
+        });
     }
 
     const blob = new Blob([outputText], { type: 'text/plain' });
@@ -277,8 +306,9 @@ function downloadAgenda() {
 
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'new_agenda_' + new Date().toISOString().slice(0, 10) + '.txt';
-    
+    const dateForFilename = new Date().toISOString().slice(0, 10);
+    a.download = `meeting_agenda_${dateForFilename}.txt`;
+
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
