@@ -98,6 +98,32 @@
     border-radius: 4px;
     background-color: #f7f7f7;
 }
+.footer-nav {
+    margin-top: 30px;
+    padding: 20px 0;
+    border-top: 1px solid #ddd;
+    text-align: center;
+}
+.footer-nav a {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 0 10px;
+    background-color: #f8f9fa;
+    color: #333;
+    text-decoration: none;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    transition: background-color 0.2s;
+}
+.footer-nav a:hover {
+    background-color: #e9ecef;
+    text-decoration: none;
+}
+.footer-nav a.current {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
 </style>
 </head>
 <body>
@@ -118,6 +144,11 @@
         <button class="add-btn" onclick="addNewTask('New Task Added')">➕ Add New Task</button>
         <button id="export-btn">⬇️ Download Next Agenda</button>
         <button id="clear-data-btn" style="background-color: #dc3545; color: white;">🗑️ Clear Saved Data</button>
+    </div>
+
+    <div class="footer-nav">
+        <a href="index.html" class="current">📝 Task Manager</a>
+        <a href="qa.html">❓ Q&A Generator</a>
     </div>
 
 </div>

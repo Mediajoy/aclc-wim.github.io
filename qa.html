@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Q&A Generator - Question and Answer Tool</title>
+<style>
+/* --- CSS Styling --- */
+#qa-container {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.qa-item {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+}
+
+.question {
+    font-weight: bold;
+    margin-bottom: 10px;
+    padding: 8px;
+    background-color: #e3f2fd;
+    border-radius: 4px;
+    border-left: 4px solid #2196f3;
+}
+
+.answer-input {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    resize: vertical;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.answer-input:focus {
+    border: 1px solid #007bff;
+    outline: none;
+    background-color: #fff;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.controls button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+#load-questions-btn {
+    background-color: #28a745;
+    color: white;
+}
+
+#load-questions-btn:hover {
+    background-color: #218838;
+}
+
+#download-btn {
+    background-color: #007bff;
+    color: white;
+}
+
+#download-btn:hover {
+    background-color: #0056b3;
+}
+
+#clear-btn {
+    background-color: #dc3545;
+    color: white;
+}
+
+#clear-btn:hover {
+    background-color: #c82333;
+}
+
+#questions-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+    min-height: 120px;
+    resize: vertical;
+    font-family: Arial, sans-serif;
+}
+
+.input-area {
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    padding: 15px;
+    border-radius: 4px;
+    background-color: #f7f7f7;
+}
+
+.stats {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #e8f5e8;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #2e7d32;
+}
+
+.no-questions {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 40px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+.footer-nav {
+    margin-top: 30px;
+    padding: 20px 0;
+    border-top: 1px solid #ddd;
+    text-align: center;
+}
+.footer-nav a {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 0 10px;
+    background-color: #f8f9fa;
+    color: #333;
+    text-decoration: none;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    transition: background-color 0.2s;
+}
+.footer-nav a:hover {
+    background-color: #e9ecef;
+    text-decoration: none;
+}
+.footer-nav a.current {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+</style>
+</head>
+<body>
+
+<div id="qa-container">
+    <h2>Q&A Generator 📝</h2>
+    <p>Paste questions, add answers, and download your Q&A document!</p>
+
+    <div class="input-area">
+        <p><strong>1. Paste your questions below (one per line or separated by blank lines):</strong></p>
+        <textarea id="questions-input" placeholder="Example:
+What is your name?
+
+What is your favorite color?
+
+How many years of experience do you have?
+
+What are your career goals?"></textarea>
+        <button id="load-questions-btn">2. Split into Questions</button>
+    </div>
+
+    <div id="qa-list">
+        <div class="no-questions">
+            Questions will appear here after you paste and split them above.
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="download-btn">⬇️ Download Q&A Document</button>
+        <button id="clear-btn">🗑️ Clear All Data</button>
+    </div>
+
+    <div class="stats" id="stats" style="display: none;">
+        <span id="question-count">0</span> questions • <span id="answered-count">0</span> answered
+    </div>
+
+    <div class="footer-nav">
+        <a href="index.html">📝 Task Manager</a>
+        <a href="qa.html" class="current">❓ Q&A Generator</a>
+    </div>
+
+</div>
+
+<script>
+// --- JavaScript Logic ---
+
+const QA_STORAGE_KEY = 'qaData';
+const questionsInput = document.getElementById('questions-input');
+const loadQuestionsBtn = document.getElementById('load-questions-btn');
+const qaList = document.getElementById('qa-list');
+const downloadBtn = document.getElementById('download-btn');
+const clearBtn = document.getElementById('clear-btn');
+const stats = document.getElementById('stats');
+const questionCount = document.getElementById('question-count');
+const answeredCount = document.getElementById('answered-count');
+
+// ------------------------------------------------------------------
+// LOCAL STORAGE FUNCTIONS
+// ------------------------------------------------------------------
+
+/**
+ * Saves the current Q&A data to localStorage
+ */
+function saveQAData() {
+    const qaItems = [];
+    qaList.querySelectorAll('.qa-item').forEach(item => {
+        const question = item.querySelector('.question').textContent.trim();
+        const answer = item.querySelector('.answer-input').value.trim();
+        qaItems.push({ question, answer });
+    });
+    localStorage.setItem(QA_STORAGE_KEY, JSON.stringify(qaItems));
+    updateStats();
+}
+
+/**
+ * Loads Q&A data from localStorage
+ */
+function loadQAData() {
+    const jsonString = localStorage.getItem(QA_STORAGE_KEY);
+    qaList.innerHTML = '';
+
+    if (jsonString) {
+        try {
+            const qaItems = JSON.parse(jsonString);
+            if (qaItems.length > 0) {
+                qaItems.forEach(item => {
+                    if (item.question) {
+                        createQAElement(item.question, item.answer || '');
+                    }
+                });
+                updateStats();
+                return;
+            }
+        } catch (e) {
+            console.error("Error parsing Q&A data from localStorage:", e);
+        }
+    }
+
+    // Show placeholder if no data
+    showNoQuestionsPlaceholder();
+}
+
+/**
+ * Shows the placeholder when no questions exist
+ */
+function showNoQuestionsPlaceholder() {
+    qaList.innerHTML = `
+        <div class="no-questions">
+            Questions will appear here after you paste and split them above.
+        </div>
+    `;
+    stats.style.display = 'none';
+}
+
+// ------------------------------------------------------------------
+// Q&A MANAGEMENT FUNCTIONS
+// ------------------------------------------------------------------
+
+/**
+ * Creates a Q&A element and adds it to the list
+ */
+function createQAElement(question, answer = '') {
+    const qaItem = document.createElement('div');
+    qaItem.className = 'qa-item';
+
+    const questionDiv = document.createElement('div');
+    questionDiv.className = 'question';
+    questionDiv.textContent = question;
+
+    const answerInput = document.createElement('textarea');
+    answerInput.className = 'answer-input';
+    answerInput.value = answer;
+    answerInput.placeholder = 'Type your answer here...';
+
+    // Save data when answer changes
+    answerInput.addEventListener('input', saveQAData);
+    answerInput.addEventListener('blur', saveQAData);
+
+    qaItem.appendChild(questionDiv);
+    qaItem.appendChild(answerInput);
+    qaList.appendChild(qaItem);
+}
+
+/**
+ * Processes the pasted questions and creates Q&A elements
+ */
+function loadQuestionsFromInput() {
+    const text = questionsInput.value.trim();
+    if (!text) return;
+
+    // Clear existing content
+    qaList.innerHTML = '';
+
+    // Split questions by double newlines first, then by single newlines
+    let questions = text.split(/\n\s*\n/).filter(q => q.trim());
+
+    // If no double newlines found, split by single newlines
+    if (questions.length === 1) {
+        questions = text.split('\n').filter(q => q.trim());
+    }
+
+    // Remove common question markers and clean up
+    questions = questions.map(q => {
+        return q.trim()
+            .replace(/^\d+[\.\)]\s*/, '') // Remove "1. " or "1) "
+            .replace(/^[•\-\*]\s*/, '')   // Remove bullet points
+            .replace(/^\?\s*/, '');        // Remove standalone question marks
+    }).filter(q => q.length > 0);
+
+    if (questions.length === 0) {
+        showNoQuestionsPlaceholder();
+        return;
+    }
+
+    // Create Q&A elements for each question
+    questions.forEach(question => {
+        createQAElement(question);
+    });
+
+    // Clear input and save data
+    questionsInput.value = '';
+    saveQAData();
+}
+
+/**
+ * Updates the statistics display
+ */
+function updateStats() {
+    const totalQuestions = qaList.querySelectorAll('.qa-item').length;
+    const answeredQuestions = Array.from(qaList.querySelectorAll('.answer-input'))
+        .filter(input => input.value.trim().length > 0).length;
+
+    if (totalQuestions > 0) {
+        questionCount.textContent = totalQuestions;
+        answeredCount.textContent = answeredQuestions;
+        stats.style.display = 'block';
+    } else {
+        stats.style.display = 'none';
+    }
+}
+
+/**
+ * Downloads the Q&A data as a text file
+ */
+function downloadQADocument() {
+    const qaItems = qaList.querySelectorAll('.qa-item');
+    if (qaItems.length === 0) {
+        alert('No questions to download. Please add some questions first.');
+        return;
+    }
+
+    const currentDate = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    let outputText = `Q&A Document - ${currentDate}\n`;
+    outputText += "=".repeat(50) + "\n\n";
+
+    qaItems.forEach((item, index) => {
+        const question = item.querySelector('.question').textContent.trim();
+        const answer = item.querySelector('.answer-input').value.trim();
+
+        outputText += `${index + 1}. ${question}\n`;
+        outputText += `Answer: ${answer || '[No answer provided]'}\n\n`;
+    });
+
+    outputText += `\nGenerated on ${currentDate}\n`;
+    outputText += `Total Questions: ${qaItems.length}\n`;
+    outputText += `Answered: ${Array.from(qaItems).filter(item =>
+        item.querySelector('.answer-input').value.trim().length > 0
+    ).length}`;
+
+    const blob = new Blob([outputText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    const dateForFilename = new Date().toISOString().slice(0, 10);
+    a.download = `qa_document_${dateForFilename}.txt`;
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Clears all Q&A data
+ */
+function clearAllData() {
+    if (confirm("Are you sure you want to clear all questions and answers? This cannot be undone.")) {
+        localStorage.removeItem(QA_STORAGE_KEY);
+        loadQAData();
+        alert("All data has been cleared.");
+    }
+}
+
+// ------------------------------------------------------------------
+// EVENT LISTENERS & INITIALIZATION
+// ------------------------------------------------------------------
+
+loadQuestionsBtn.addEventListener('click', loadQuestionsFromInput);
+downloadBtn.addEventListener('click', downloadQADocument);
+clearBtn.addEventListener('click', clearAllData);
+
+// Allow Enter key to trigger question loading
+questionsInput.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'Enter') {
+        loadQuestionsFromInput();
+    }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', loadQAData);
+
+</script>
+
+</body>
+</html>
